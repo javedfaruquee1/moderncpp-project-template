@@ -61,16 +61,30 @@ jobs:
     # Generate SBOM
     - name: Generate SBOM
       run: |
-        syft scan dir:$GITHUB_WORKSPACE \
+        # Scan only the build directory where dependencies are installed
+        syft scan dir:./build \
           --output cyclonedx-json=$GITHUB_WORKSPACE/sbom.cdx.json \
           --source-name "${{ github.repository }}" \
           --source-version "${{ github.sha }}"
-          
+        
+        # Verify SBOM was created
+        if [ ! -f "$GITHUB_WORKSPACE/sbom.cdx.json" ]; then
+          echo "Error: SBOM file was not generated"
+          exit 1
+        fi
+                
     # Scan with explicit CycloneDX format
     - name: Run vulnerability scan
       run: |
            osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json $GITHUB_WORKSPACE/sbom.cdx.json
-
+           # Check if results were generated
+           if [ ! -f "$GITHUB_WORKSPACE/results.json" ]; then
+             echo "Error: No scan results generated"
+             exit 1
+           else
+             echo "Scan results:"
+             cat $GITHUB_WORKSPACE/results.json
+           fi
     # Upload results
     - name: Upload scan results
       uses: actions/upload-artifact@v4
