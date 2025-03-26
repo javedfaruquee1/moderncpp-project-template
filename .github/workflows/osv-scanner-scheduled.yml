@@ -63,19 +63,33 @@ jobs:
     # Syft Generate SBOM
     - name: Generate SBOM
       run: |
-        # Scan only the build directory where dependencies are installed
-        syft scan dir:./build dir:~/.conan/data \
+        # Scan both directories separately and merge
+        syft packages dir:./build \
           --scope all-layers \
-          --output cyclonedx-json=$GITHUB_WORKSPACE/sbom.cdx.json \
-          --source-name "${{ github.repository }}" \
-          --source-version "${{ github.sha }}"
+          --output cyclonedx-json=$GITHUB_WORKSPACE/build_sbom.cdx.json
+
+        cat $GITHUB_WORKSPACE/build_sbom.cdx.json
         
-        # Verify SBOM was created
-        if [ ! -f "$GITHUB_WORKSPACE/sbom.cdx.json" ]; then
-          echo "Error: SBOM file was not generated"
+        syft packages dir:~/.conan/data \
+          --scope all-layers \
+          --output cyclonedx-json=$GITHUB_WORKSPACE/conan_sbom.cdx.json
+
+        cat $GITHUB_WORKSPACE/conan_sbom.cdx.json
+        
+        # Merge SBOMs (requires jq)
+        jq -s '
+          .[0].components + .[1].components | 
+          {components: .} |
+          .metadata = {"component": {"name": "javedfaruquee1/moderncpp-project-template", "version": "3b27e0df003c0339d1a03fb554ff8ca057a39cc8"}
+        }' $GITHUB_WORKSPACE/build_sbom.cdx.json $GITHUB_WORKSPACE/conan_sbom.cdx.json > "$GITHUB_WORKSPACE/sbom.cdx.json"
+
+        # Verify SBOM
+        if [ ! -s "$GITHUB_WORKSPACE/sbom.cdx.json" ]; then
+          echo "::error::SBOM generation failed"
           exit 1
         fi
-
+        echo "SBOM generated successfully"
+        
     - name: Debug - Show SBOM contents
       run: |
         echo "Current directory:"
