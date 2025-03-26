@@ -88,10 +88,10 @@ jobs:
     # Scan with explicit CycloneDX format
     - name: Run vulnerability scan
       run: |
-           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json
+           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json --sbom=$GITHUB_WORKSPACE/sbom.cdx.json
            echo "License file contents:"
            cat $GITHUB_WORKSPACE/licenses.json
-           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json $GITHUB_WORKSPACE/sbom.cdx.json
+           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json --sbom=$GITHUB_WORKSPACE/sbom.cdx.json
            # Check if results were generated
            if [ ! -f "$GITHUB_WORKSPACE/results.json" ]; then
              echo "Error: No scan results generated"
