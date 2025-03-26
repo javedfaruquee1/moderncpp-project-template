@@ -1,0 +1,75 @@
+name: OSV-Scanner with SBOM
+
+on:
+  schedule:
+    - cron: "2 * * * *"
+  push:
+    branches: [main]
+
+permissions:
+  actions: read
+  security-events: write
+  contents: read
+
+jobs:
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Setup Go environment (required for osv-scanner installation)
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    # Install OSV-Scanner (correct method)
+    - name: Install OSV-Scanner
+      run: |
+        go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        osv-scanner --version
+
+    # Install build tools and Syft
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+        curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    # Conditional CMake build (only if CMakeLists.txt exists)
+    - name: Build project (CMake)
+      if: steps.check-cmake.outputs.cmake_exists == 'true'
+      run: |
+        # Find CMakeLists.txt recursively
+        CMAKE_DIR=$(find . -name CMakeLists.txt -printf '%h\n' | head -1)
+        if [ -z "$CMAKE_DIR" ]; then
+          echo "Error: CMakeLists.txt not found in repository"
+          exit 1
+        fi
+        echo "Found CMakeLists.txt in $CMAKE_DIR"
+        cd "$CMAKE_DIR"
+        cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
+        cmake --build build    
+    
+    # Generate SBOM
+    - name: Generate SBOM
+      run: |
+        syft scan dir:$GITHUB_WORKSPACE \
+          --output cyclonedx-json=$GITHUB_WORKSPACE/sbom.cdx.json \
+          --source-name "${{ github.repository }}" \
+          --source-version "${{ github.sha }}"
+          
+    # Scan with explicit CycloneDX format
+    - name: Run vulnerability scan
+      run: |
+           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json $GITHUB_WORKSPACE/sbom.cdx.json
+
+    # Upload results
+    - name: Upload scan results
+      uses: actions/upload-artifact@v4
+      with:
+        name: vulnerability-scan-results
+        path: ${{ github.workspace }}/results.json
