@@ -46,19 +46,17 @@ jobs:
         
     - name: Install conan
       run: |
-          pip install conan --upgrade
+          pip install "conan>=2.0" --upgrade
           conan profile detect --force
           pip install conan-sbom
                       
     - name: Linux build
       run: |
           mkdir -p build && cd build
-          conan install .. --output-folder=. --build=missing --format=json > conan_deps.json
-          conan-sbom conan_deps.json --output conansbom.cdx.json
+          conan install .. --output-folder=. --build=missing    
+          conan graph info . --format=json > conansbom.cdx.json
           echo "CONAN_SBOM file contents:"
           cat $GITHUB_WORKSPACE/conansbom.cdx.json
-          #cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
-          #cmake --build . --config Release --target install
           cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
           cmake --build .  --config Release --target install
           ls -la
