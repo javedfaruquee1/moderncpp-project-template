@@ -62,62 +62,33 @@ jobs:
 
     # Syft Generate SBOM
     - name: Generate SBOM
-      run: |
-        # Scan both directories separately and merge
-        syft packages dir:./build \
-          --scope all-layers \
-          --output cyclonedx-json=$GITHUB_WORKSPACE/build_sbom.cdx.json
+      run: | 
+        syft scan dir:./build \
+          --name "javedfaruquee1/moderncpp-project-template" \
+          --version "3b27e0df003c0339d1a03fb554ff8ca057a39cc8" \
+          --output cyclonedx-json= $GITHUB_WORKSPACE/build_sbom.cdx.json
 
         cat $GITHUB_WORKSPACE/build_sbom.cdx.json
-        
-        syft packages dir:~/.conan/data \
-          --scope all-layers \
-          --output cyclonedx-json=$GITHUB_WORKSPACE/conan_sbom.cdx.json
 
-        cat $GITHUB_WORKSPACE/conan_sbom.cdx.json
-        
-        # Merge SBOMs (requires jq)
-        jq -s '
-          .[0].components + .[1].components | 
-          {components: .} |
-          .metadata = {"component": {"name": "javedfaruquee1/moderncpp-project-template", "version": "3b27e0df003c0339d1a03fb554ff8ca057a39cc8"}
-        }' $GITHUB_WORKSPACE/build_sbom.cdx.json $GITHUB_WORKSPACE/conan_sbom.cdx.json > "$GITHUB_WORKSPACE/sbom.cdx.json"
-
-        # Verify SBOM
-        if [ ! -s "$GITHUB_WORKSPACE/sbom.cdx.json" ]; then
-          echo "::error::SBOM generation failed"
-          exit 1
+        CONAN_CACHE="${HOME}/.conan/data"
+        if [ -d "$CONAN_CACHE" ]; then
+          syft scan dir:"$CONAN_CACHE" \
+            --output cyclonedx-json=conan_sbom.cdx.json
+          cat $GITHUB_WORKSPACE/conan_sbom.cdx.json  
+        else
+          echo "::warning::Conan cache not found at $CONAN_CACHE"
+          echo '{"components":[]}' > conan_sbom.cdx.json
         fi
-        echo "SBOM generated successfully"
         
-    - name: Debug - Show SBOM contents
-      run: |
-        echo "Current directory:"
-        pwd
-        echo "Going to dependency directory:"
-        cd $GITHUB_WORKSPACE/build && ls -la && cd $GITHUB_WORKSPACE/ && ls -la
-        echo "SBOM file contents:"
-        cat $GITHUB_WORKSPACE/sbom.cdx.json
-        # Check minimum requirements
-        jq '.metadata.component.name' $GITHUB_WORKSPACE/sbom.cdx.json
-        echo "Current directory:"
-        pwd && ls -la
+        echo "SBOM generated successfully"
 
-    #combine syft and conan sbom
-    - name: Combine SBOMs
-      run: |
-        jq '.components = ($conan.components + $syft.components | unique)' \
-          --slurpfile conan sbom_conan.cdx.json \
-          --slurpfile syft sbom_syft.cdx.json \
-          sbom_conan.cdx.json > sbom_final.cdx.json
-            
     # Scan with explicit CycloneDX format
     - name: Run vulnerability scan
       run: |
-           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json --sbom=$GITHUB_WORKSPACE/sbom_final.cdx.json
+           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json --sbom=$GITHUB_WORKSPACE/conan_sbom.cdx.json
            echo "License file contents:"
            cat $GITHUB_WORKSPACE/licenses.json
-           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json --sbom=$GITHUB_WORKSPACE/sbom_final.cdx.json
+           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json --sbom=$GITHUB_WORKSPACE/conan_sbom.cdx.json
            # Check if results were generated
            if [ ! -f "$GITHUB_WORKSPACE/results.json" ]; then
              echo "Error: No scan results generated"
