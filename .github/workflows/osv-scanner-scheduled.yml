@@ -24,7 +24,7 @@ jobs:
       with:
         go-version: '1.21'
         
-    # Install OSV-Scanner (correct method)
+    # Install OSV-Scanner (correct method )
     - name: Install OSV-Scanner
       run: |
         go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
