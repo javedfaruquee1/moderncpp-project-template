@@ -72,7 +72,16 @@ jobs:
           echo "Error: SBOM file was not generated"
           exit 1
         fi
-                
+
+    - name: Debug - Show SBOM contents
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "SBOM file contents:"
+        cat $GITHUB_WORKSPACE/sbom.cdx.json
+        echo "Current directory:"
+        pwd && ls -la
+    
     # Scan with explicit CycloneDX format
     - name: Run vulnerability scan
       run: |
