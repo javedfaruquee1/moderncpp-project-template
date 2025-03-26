@@ -39,20 +39,25 @@ jobs:
         curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-    # Conditional CMake build (only if CMakeLists.txt exists)
-    - name: Build project (CMake)
-      if: steps.check-cmake.outputs.cmake_exists == 'true'
-      run: |
-        # Find CMakeLists.txt recursively
-        CMAKE_DIR=$(find . -name CMakeLists.txt -printf '%h\n' | head -1)
-        if [ -z "$CMAKE_DIR" ]; then
-          echo "Error: CMakeLists.txt not found in repository"
-          exit 1
-        fi
-        echo "Found CMakeLists.txt in $CMAKE_DIR"
-        cd "$CMAKE_DIR"
-        cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
-        cmake --build build    
+      - name: Install Python environment 
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+        
+      - name: Install conan
+        run: |
+            pip install conan --upgrade
+            conan profile detect --force
+                    
+      - name: Linux build
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            mkdir -p build && cd build
+            conan install .. --output-folder=. --build=missing
+            cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
+            cmake --build . --config Release --target install
+            #cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
+            #cmake --build build    
     
     # Generate SBOM
     - name: Generate SBOM
