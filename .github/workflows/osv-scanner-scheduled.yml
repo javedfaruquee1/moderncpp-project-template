@@ -64,7 +64,7 @@ jobs:
         # Scan only the build directory where dependencies are installed
         syft scan dir:./build \
           --scope all-layers \
-          --file-metadata \
+          --file-metadata="*.so|*.a|*.dylib|*.dll|*.exe" \
           --output cyclonedx-json=$GITHUB_WORKSPACE/sbom.cdx.json \
           --source-name "${{ github.repository }}" \
           --source-version "${{ github.sha }}"
