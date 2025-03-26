@@ -53,16 +53,18 @@ jobs:
       run: |
           mkdir -p build && cd build
           conan install .. --output-folder=. --build=missing
-          cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release --target install
-          #cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
-          #cmake --build build    
+          #cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
+          #cmake --build . --config Release --target install
+          cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
+          cmake --build build    
     
     # Generate SBOM
     - name: Generate SBOM
       run: |
         # Scan only the build directory where dependencies are installed
         syft scan dir:./build \
+          --scope all-layers \
+          --file-metadata \
           --output cyclonedx-json=$GITHUB_WORKSPACE/sbom.cdx.json \
           --source-name "${{ github.repository }}" \
           --source-version "${{ github.sha }}"
@@ -77,6 +79,8 @@ jobs:
       run: |
         echo "Current directory:"
         pwd
+        echo "Going to dependency directory:"
+        cd $GITHUB_WORKSPACE/build && ls -la && cd $GITHUB_WORKSPACE/ && ls -la
         echo "SBOM file contents:"
         cat $GITHUB_WORKSPACE/sbom.cdx.json
         echo "Current directory:"
