@@ -48,9 +48,8 @@ jobs:
       run: |
           pip install conan --upgrade
           conan profile detect --force
-                  
+                        
     - name: Linux build
-      if: matrix.os == 'ubuntu-latest'
       run: |
           mkdir -p build && cd build
           conan install .. --output-folder=. --build=missing
