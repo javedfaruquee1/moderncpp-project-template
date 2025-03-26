@@ -39,25 +39,25 @@ jobs:
         curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install Python environment 
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+    - name: Install Python environment 
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
         
-      - name: Install conan
-        run: |
-            pip install conan --upgrade
-            conan profile detect --force
-                    
-      - name: Linux build
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            mkdir -p build && cd build
-            conan install .. --output-folder=. --build=missing
-            cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
-            cmake --build . --config Release --target install
-            #cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
-            #cmake --build build    
+    - name: Install conan
+      run: |
+          pip install conan --upgrade
+          conan profile detect --force
+                  
+    - name: Linux build
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+          mkdir -p build && cd build
+          conan install .. --output-folder=. --build=missing
+          cmake .. -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release --target install
+          #cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .
+          #cmake --build build    
     
     # Generate SBOM
     - name: Generate SBOM
