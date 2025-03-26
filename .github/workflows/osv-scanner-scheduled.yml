@@ -64,40 +64,25 @@ jobs:
     - name: Generate SBOM
       run: | 
         syft scan dir:./build \
-          --name "javedfaruquee1/moderncpp-project-template" \
-          --version "3b27e0df003c0339d1a03fb554ff8ca057a39cc8" \
-          --output cyclonedx-json= $GITHUB_WORKSPACE/build_sbom.cdx.json
+          --output cyclonedx-json=$GITHUB_WORKSPACE/syft_conan.sbom.json
 
-        cat $GITHUB_WORKSPACE/build_sbom.cdx.json
+        cat $GITHUB_WORKSPACE/syft.sbom.json
 
-        CONAN_CACHE="${HOME}/.conan/data"
-        if [ -d "$CONAN_CACHE" ]; then
-          syft scan dir:"$CONAN_CACHE" \
-            --output cyclonedx-json=conan_sbom.cdx.json
-          cat $GITHUB_WORKSPACE/conan_sbom.cdx.json  
-        else
-          echo "::warning::Conan cache not found at $CONAN_CACHE"
-          echo '{"components":[]}' > conan_sbom.cdx.json
-        fi
-        
         echo "SBOM generated successfully"
 
     # Scan with explicit CycloneDX format
     - name: Run vulnerability scan
       run: |
-           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json --sbom=$GITHUB_WORKSPACE/conan_sbom.cdx.json
+           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/licenses.json --sbom=$GITHUB_WORKSPACE/syft.sbom.json
            echo "License file contents:"
            cat $GITHUB_WORKSPACE/licenses.json
-           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json --sbom=$GITHUB_WORKSPACE/conan_sbom.cdx.json
-           # Check if results were generated
-           if [ ! -f "$GITHUB_WORKSPACE/results.json" ]; then
-             echo "Error: No scan results generated"
-             exit 1
-           else
-             echo "Scan results:"
-             cat $GITHUB_WORKSPACE/results.json
-           fi
-           
+           osv-scanner --licenses --format=json --output=$GITHUB_WORKSPACE/conan_licenses.json --sbom=$GITHUB_WORKSPACE/conansbom.cdx.json
+           echo "License file conan contents:"
+           cat $GITHUB_WORKSPACE/conan_licenses.json
+           osv-scanner --format=json --output=$GITHUB_WORKSPACE/results.json --sbom=$GITHUB_WORKSPACE/syft.sbom.json
+           cat $GITHUB_WORKSPACE/results.json
+           osv-scanner --format=json --output=$GITHUB_WORKSPACE/conan_results.json --sbom=$GITHUB_WORKSPACE/conansbom.cdx.json
+           cat $GITHUB_WORKSPACE/conan_results.json           
     # Upload results
     - name: Upload scan results
       uses: actions/upload-artifact@v4
