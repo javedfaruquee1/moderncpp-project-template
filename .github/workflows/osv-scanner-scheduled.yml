@@ -48,13 +48,12 @@ jobs:
       run: |
           pip install conan --upgrade
           conan profile detect --force
-                        
+          pip install conan-sbom
+                      
     - name: Linux build
       run: |
           mkdir -p build && cd build
-          conan install .. --output-folder=. --build=missing
-          conan install .. --build=missing --format=json > conan_deps.json
-          pip install conan-sbom
+          conan install .. --output-folder=. --build=missing --format=json > conan_deps.json
           conan-sbom conan_deps.json --output conansbom.cdx.json
           echo "CONAN_SBOM file contents:"
           cat $GITHUB_WORKSPACE/conansbom.cdx.json
@@ -63,7 +62,8 @@ jobs:
           cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=TRUE -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release
           cmake --build .  --config Release --target install
           ls -la
-    # Generate SBOM
+
+    # Syft Generate SBOM
     - name: Generate SBOM
       run: |
         # Scan only the build directory where dependencies are installed
